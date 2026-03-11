@@ -20,7 +20,7 @@ module fifo_buffer #(
     
     assign pixel_out = mem[address];
     
-    always_ff @(posedge clk or negedge rst) begin
+    always_ff @(posedge clk) begin
         if (!rst) begin
             for (int i = 0; i < PictureWidth; i++)
                 mem[i] <= '0;
