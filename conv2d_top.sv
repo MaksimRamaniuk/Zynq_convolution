@@ -80,8 +80,8 @@ module conv2d_top #(
         end
     endgenerate
 
-    always_ff @(posedge clk) begin
-        if(rst) begin
+    always_ff @(posedge clk or negedge rst) begin
+        if(!rst) begin
             for (int i = 0; i < SIZE; i++)
                 for (int j = 0; j < SIZE; j++)
                     window[i][j] <= '0;
@@ -104,8 +104,8 @@ module conv2d_top #(
         end
     end
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
+    always_ff @(posedge clk or negedge rst) begin
+        if (!rst) begin
             warmup_cnt <= 0;
             warmup_done <= 0;
             end_cnt <= 0;

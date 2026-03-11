@@ -19,8 +19,8 @@ module convolution #(
     logic [2*WIDTH-1:0] sum;
     logic [2*WIDTH-1:0] product;
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
+    always_ff @(posedge clk  or negedge rst) begin
+        if (!rst) begin
             OutData <= 0;
             ready <= 0;
         end
