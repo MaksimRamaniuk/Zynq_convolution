@@ -4,20 +4,20 @@ module convolution #(
     parameter WIDTH = 8,
     parameter SIZE  = 3
 )(
-    input  logic clk,
-    input  logic rst,
-    input  logic enable,
+    input logic clk,
+    input logic rst,
+    input logic enable,
 
-    input  logic [WIDTH-1:0] InData [0:SIZE-1][0:SIZE-1],
-    input  logic [WIDTH-1:0] kernel [0:SIZE-1][0:SIZE-1],
+    input logic [WIDTH-1:0] InData [0:SIZE-1][0:SIZE-1],
+    input logic  [WIDTH-1:0] kernel [0:SIZE-1][0:SIZE-1],
     input integer divisior,
 
     output logic ready,
     output logic [WIDTH-1:0] OutData
 );
 
-    logic [2*WIDTH-1:0] sum;
-    logic [2*WIDTH-1:0] product;
+    logic  [2*WIDTH-1:0] sum;
+    logic  [2*WIDTH-1:0] product;
 
     always_ff @(posedge clk) begin
         if (!rst) begin
@@ -37,11 +37,12 @@ module convolution #(
                     end
                 end
                 sum /= divisior;
+                           
                 if (sum > ((1 << WIDTH) - 1))
-                    OutData <= (1 << WIDTH) - 1;
+                    OutData <= sum - ((1 << WIDTH));
                 else
                     OutData <= sum[WIDTH-1:0];
-
+                    
                 ready <= 1;
             end
         end
