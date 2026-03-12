@@ -14,7 +14,8 @@ module conv2d_top #(
     input integer divisior,
 
     output logic ready,
-    output logic [WIDTH-1:0] pixel_out
+    output logic [WIDTH-1:0] pixel_out,
+    output logic tlast
 );
     logic [WIDTH-1:0] window [0:SIZE-1][0:SIZE-1];
     logic [WIDTH-1:0] line_buffer [0:SIZE-2];
@@ -25,6 +26,7 @@ module conv2d_top #(
     logic warmup_done;
     logic conv_enable;
     logic fifo_enable;
+    logic conv_ready;
     
     integer warmup_cnt;
     integer end_cnt;
@@ -61,12 +63,19 @@ module conv2d_top #(
             pad_done <= 0; 
     end
     
+    always_comb begin
+        if (col_cnt == ((SIZE-1)/2) && conv_ready)
+            tlast <= 1;
+        else 
+            tlast <= 0; 
+    end
+    
     genvar i;
     generate
         for (i = 0; i < SIZE-1; i++) begin : gen_fifo
             fifo_buffer #(
                 .WIDTH(WIDTH),
-                .PictureWidth(PictureWidth - 1) // для вертикального расширения
+                .PictureWidth(PictureWidth - 1)
             ) fifo_bufferi (
                 .clk(clk),
                 .rst(rst),
@@ -156,7 +165,9 @@ module conv2d_top #(
         .InData(window),
         .kernel(kernel),
         .divisior(divisior),
-        .ready(ready),
+        .ready(conv_ready),
         .OutData(pixel_out)
     );
+    
+    assign ready = conv_ready;
 endmodule
