@@ -135,7 +135,7 @@ module conv2d_top #(
     end
 
     always_ff @(posedge clk) begin
-        if (warmup_done) begin
+        if (warmup_done || conv_enable) begin
             if (col_cnt == PictureWidth-1) begin
                 col_cnt <= 0;
             end else
