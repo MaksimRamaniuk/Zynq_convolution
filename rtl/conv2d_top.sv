@@ -17,6 +17,7 @@ module conv2d_top #(
     output logic [WIDTH-1:0] pixel_out,
     output logic tlast
 );
+    
     logic [WIDTH-1:0] window [0:SIZE-1][0:SIZE-1];
     logic [WIDTH-1:0] line_buffer [0:SIZE-2];
     
@@ -75,8 +76,7 @@ module conv2d_top #(
         for (i = 0; i < SIZE-1; i++) begin : gen_fifo
             fifo_buffer #(
                 .WIDTH(WIDTH),
-//                .PictureWidth(PictureWidth - 1)
-                .PictureWidth(PictureWidth - ((SIZE-1)/2))
+                .PictureWidth(PictureWidth - 1)
             ) fifo_bufferi (
                 .clk(clk),
                 .rst(rst),
@@ -115,6 +115,17 @@ module conv2d_top #(
     end
 
     always_ff @(posedge clk) begin
+        if (warmup_cnt == WARMUP && enable && !warmup_done)
+            col_cnt <= 0;
+        else if (warmup_done || conv_enable) begin
+            if (col_cnt == PictureWidth-1) begin
+                col_cnt <= 0;
+            end else
+                col_cnt++;
+        end
+    end
+    
+    always_ff @(posedge clk) begin
         if (!rst) begin
             warmup_cnt <= 0;
             warmup_done <= 0;
@@ -132,19 +143,6 @@ module conv2d_top #(
                 warmup_done <= 0;
             end else
                 end_cnt++;
-        end
-    end
-
-    always_ff @(posedge clk) begin
-        if (enable && !warmup_done) begin
-            if (warmup_cnt == WARMUP)
-                col_cnt <= 0;
-        end
-        else if (warmup_done || conv_enable) begin
-            if (col_cnt == PictureWidth-1)
-                col_cnt <= 0;
-            else
-                col_cnt++;
         end
     end
     
