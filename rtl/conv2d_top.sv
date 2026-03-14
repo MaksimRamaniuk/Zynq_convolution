@@ -23,6 +23,7 @@ module conv2d_top #(
     
     localparam PAD = (SIZE-1)/2;
     localparam WARMUP = PictureWidth*((SIZE-1)/2) + (SIZE-1);
+    localparam RIGHT_PAD_START = PictureWidth - PAD + (SIZE > 3 ? 1 : 0);
 
     logic pad_done;
     logic warmup_done;
@@ -43,8 +44,7 @@ module conv2d_top #(
     always_ff @(posedge clk) begin
         window_in <= '0;
         if (work && warmup_cnt > 0) begin
-            // Пересмотреть логику работы этого if
-            if((col_cnt < PAD && row_cnt != 0) || ((col_cnt > PictureWidth - (SIZE-1)))) begin
+            if ((col_cnt < PAD && row_cnt != 0) || (col_cnt >= RIGHT_PAD_START)) begin
                 for(int i = SIZE-1; i > 0; i--)
                     window_temp[i] <= window_temp[i-1];
                 if(enable)
@@ -60,7 +60,7 @@ module conv2d_top #(
     end
     
     always_comb begin
-        if (col_cnt == (SIZE-1)/2 && warmup_cnt != SIZE)
+        if (col_cnt == (SIZE-1)/2 && row_cnt != 0)
             pad_done <= 1;
         else 
             pad_done <= 0; 
