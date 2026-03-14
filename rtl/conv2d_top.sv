@@ -21,6 +21,7 @@ module conv2d_top #(
     logic [WIDTH-1:0] window [0:SIZE-1][0:SIZE-1];
     logic [WIDTH-1:0] line_buffer [0:SIZE-2];
     
+    localparam PAD = (SIZE-1)/2;
     localparam WARMUP = PictureWidth*((SIZE-1)/2) + (SIZE-1);
 
     logic pad_done;
@@ -31,7 +32,7 @@ module conv2d_top #(
     
     integer warmup_cnt;
     integer end_cnt;
-    integer col_cnt;
+    integer col_cnt, row_cnt;
     
     logic [WIDTH-1:0] window_in;
     logic [WIDTH-1:0] window_temp [0:SIZE-1];
@@ -42,7 +43,8 @@ module conv2d_top #(
     always_ff @(posedge clk) begin
         window_in <= '0;
         if (work && warmup_cnt > 0) begin
-            if(((warmup_cnt >= WARMUP-1) && !warmup_done) || ((col_cnt >= PictureWidth - (SIZE-1)))) begin
+            // Пересмотреть логику работы этого if
+            if((col_cnt < PAD && row_cnt != 0) || ((col_cnt > PictureWidth - (SIZE-1)))) begin
                 for(int i = SIZE-1; i > 0; i--)
                     window_temp[i] <= window_temp[i-1];
                 if(enable)
@@ -58,18 +60,31 @@ module conv2d_top #(
     end
     
     always_comb begin
-        if (col_cnt == ((SIZE-1)/2)-1)
+        if (col_cnt == (SIZE-1)/2 && warmup_cnt != SIZE)
             pad_done <= 1;
         else 
             pad_done <= 0; 
     end
     
     always_comb begin
-        if (col_cnt == ((SIZE-1)/2) && conv_ready)
+        if (col_cnt == (SIZE-1) && conv_ready) //col_cnt == ((SIZE-1)/2)
             tlast <= 1;
         else 
             tlast <= 0; 
     end
+    
+    always_ff @(posedge clk) begin
+        if (warmup_cnt == 1 && enable) begin
+            col_cnt <= 0;
+            row_cnt <= 0;
+        end else /*if (warmup_done || conv_enable)*/ begin
+            if (col_cnt == PictureWidth-1) begin
+                col_cnt <= 0;
+                row_cnt++;
+            end else
+                col_cnt++;
+        end
+    end    
     
     genvar i;
     generate
@@ -113,17 +128,6 @@ module conv2d_top #(
             end
         end
     end
-
-    always_ff @(posedge clk) begin
-        if (warmup_cnt == WARMUP && enable && !warmup_done)
-            col_cnt <= 0;
-        else if (warmup_done || conv_enable) begin
-            if (col_cnt == PictureWidth-1) begin
-                col_cnt <= 0;
-            end else
-                col_cnt++;
-        end
-    end
     
     always_ff @(posedge clk) begin
         if (!rst) begin
@@ -132,10 +136,9 @@ module conv2d_top #(
             end_cnt <= 0;
         end
         else if (enable && !warmup_done) begin
-            if (warmup_cnt == WARMUP) begin
-//                col_cnt <= 0;
+            if (warmup_cnt == WARMUP)
                 warmup_done <= 1;
-            end else
+            else
                 warmup_cnt++;
         end 
         else if(!enable && warmup_done) begin
@@ -152,12 +155,14 @@ module conv2d_top #(
         else
             conv_enable <= 0;
     end
+    
     always_ff @(posedge clk) begin
         if (work)
             fifo_enable <= 1;
         else
             fifo_enable <= 0;
     end
+    
     convolution #(
         .WIDTH(WIDTH),
         .SIZE(SIZE)
