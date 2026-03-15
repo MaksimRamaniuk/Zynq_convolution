@@ -23,7 +23,7 @@ module conv2d_top #(
     
     localparam PAD = (SIZE-1)/2;
     localparam WARMUP = PictureWidth*((SIZE-1)/2) + (SIZE-1);
-    localparam RIGHT_PAD_START = PictureWidth - PAD + (SIZE > 3 ? 1 : 0);
+    localparam FIFO_DEPTH = (PictureWidth - 1 > SIZE) ? (PictureWidth - 1) : SIZE;
 
     logic pad_done;
     logic warmup_done;
@@ -44,7 +44,7 @@ module conv2d_top #(
     always_ff @(posedge clk) begin
         window_in <= '0;
         if (work && warmup_cnt > 0) begin
-            if ((col_cnt < PAD && row_cnt != 0) || (col_cnt >= RIGHT_PAD_START)) begin
+            if ((col_cnt < PAD && row_cnt != 0) || (col_cnt >= PictureWidth-1)) begin
                 for(int i = SIZE-1; i > 0; i--)
                     window_temp[i] <= window_temp[i-1];
                 if(enable)
@@ -66,8 +66,8 @@ module conv2d_top #(
             pad_done <= 0; 
     end
     
-    always_comb begin
-        if (col_cnt == (SIZE-1) && conv_ready) //col_cnt == ((SIZE-1)/2)
+    always_ff @(posedge clk) begin
+        if (pad_done && conv_ready) //col_cnt == ((SIZE-1)/2)
             tlast <= 1;
         else 
             tlast <= 0; 
@@ -77,7 +77,7 @@ module conv2d_top #(
         if (warmup_cnt == 1 && enable) begin
             col_cnt <= 0;
             row_cnt <= 0;
-        end else /*if (warmup_done || conv_enable)*/ begin
+        end else  begin
             if (col_cnt == PictureWidth-1) begin
                 col_cnt <= 0;
                 row_cnt++;
@@ -91,7 +91,8 @@ module conv2d_top #(
         for (i = 0; i < SIZE-1; i++) begin : gen_fifo
             fifo_buffer #(
                 .WIDTH(WIDTH),
-                .PictureWidth(PictureWidth - 1)
+                .SIZE(SIZE),
+                .PictureWidth(FIFO_DEPTH)
             ) fifo_bufferi (
                 .clk(clk),
                 .rst(rst),
@@ -111,7 +112,7 @@ module conv2d_top #(
                 for (int j = 0; j < SIZE; j++)
                     window[i][j] <= '0;
         end
-        else if (work) begin
+        else begin
             if (!pad_done) begin
                 for (int i = 0; i < SIZE; i++)
                     for (int j = SIZE-1; j > 0; j--)
@@ -136,13 +137,13 @@ module conv2d_top #(
             end_cnt <= 0;
         end
         else if (enable && !warmup_done) begin
-            if (warmup_cnt == WARMUP)
+            if (warmup_cnt == WARMUP - (PAD-1))
                 warmup_done <= 1;
             else
                 warmup_cnt++;
         end 
         else if(!enable && warmup_done) begin
-            if(end_cnt == WARMUP-1) begin
+            if(end_cnt == WARMUP-PAD) begin
                 warmup_done <= 0;
             end else
                 end_cnt++;

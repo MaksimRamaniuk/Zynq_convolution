@@ -4,8 +4,8 @@ module tb_conv2d_top;
 
     parameter WIDTH = 8;
     parameter SIZE = 3;
-    parameter PictureWidth = 4;  
-    parameter PictureHeight = 4;
+    parameter PictureWidth = 16;  
+    parameter PictureHeight = 16;
 
     logic clk;
     logic rst;
@@ -18,6 +18,7 @@ module tb_conv2d_top;
     logic [WIDTH-1:0] pixel_out;
     integer count;
     integer divisior;
+    logic tlast;
 
     conv2d_top #(
         .WIDTH(WIDTH),
@@ -31,19 +32,16 @@ module tb_conv2d_top;
         .kernel(kernel),
         .divisior(divisior),
         .ready(ready),
-        .pixel_out(pixel_out)
+        .pixel_out(pixel_out),
+        .tlast(tlast)
     );
 
     always #5 clk = ~clk;
 
-    // Инизиализация ядра свёртки
     initial begin
-//        kernel[2][0] = 0; kernel[2][1] = 0; kernel[2][2] = 0;
-//        kernel[1][0] = 0; kernel[1][1] = 1; kernel[1][2] = 0;
-//        kernel[0][0] = 0; kernel[0][1] = 0; kernel[0][2] = 0;
-        for (int r = 0; r < PictureHeight; r++)
-            for (int c = 0; c < PictureWidth; c++)
-                kernel[r][c] <= '0;
+        for (int r = 0; r < SIZE; r++)
+            for (int c = 0; c < SIZE; c++)
+                kernel[r][c] <= 0;
         kernel[(SIZE-1)/2][(SIZE-1)/2] <= 1;
         divisior = 1;
     end
@@ -51,8 +49,8 @@ module tb_conv2d_top;
     logic [WIDTH-1:0] image [0:PictureHeight-1][0:PictureWidth-1];
 
     initial begin
-        clk = 0;
-        rst = 1;
+        clk = 0;rst = 1;#20;
+        rst = 0;
         enable = 0;
         count = 1;
         for (int r = 0; r < PictureHeight; r++) begin
@@ -63,7 +61,7 @@ module tb_conv2d_top;
         end
 
         #20;
-        rst = 0;
+        rst = 1;
         #25;
         enable = 1;
 
@@ -76,9 +74,8 @@ module tb_conv2d_top;
         @(posedge clk);
         pixel_in <= 'x;
         enable <= 0;
-        for (int r = 0; r < SIZE-1; r++) 
-            for (int c = 0; c < PictureWidth; c++)
-                @(posedge clk);       
+        wait(!ready);
+        @(posedge clk);@(posedge clk);       
         $finish;
     end
 
