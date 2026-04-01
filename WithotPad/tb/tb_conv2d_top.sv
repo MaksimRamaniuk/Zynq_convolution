@@ -12,12 +12,12 @@ module tb_conv2d_top;
     logic enable;
 
     logic [WIDTH-1:0] pixel_in;
-    logic [WIDTH-1:0] kernel [0:SIZE-1][0:SIZE-1];
+    logic kernelEnable;
+    logic [1:0] kernelType;
 
     logic ready;
     logic [WIDTH-1:0] pixel_out;
     integer count;
-    logic [WIDTH-1:0] divisior;
 
     conv2d_top #(
         .WIDTH(WIDTH),
@@ -26,37 +26,23 @@ module tb_conv2d_top;
     ) DUT (
         .clk(clk),
         .rst(rst),
-        .enable(enable),
+        .tvalid(enable),
         .pixel_in(pixel_in),
-        .kernel(kernel),
-        .divisior(divisior),
+        .kernelEnable(kernelEnable),
+        .kernelType(kernelType),
         .ready(ready),
         .pixel_out(pixel_out)
     );
 
     always #5 clk = ~clk;
 
-    // Инизиализация ядра свёртки
-    initial begin
-//        kernel[2][0] = 1; kernel[2][1] = 2; kernel[2][2] = 1;
-//        kernel[1][0] = 2; kernel[1][1] = 4; kernel[1][2] = 2;
-//        kernel[0][0] = 1; kernel[0][1] = 2; kernel[0][2] = 1;
-        
-//        divisior = 16;
-        for (int r = 0; r < SIZE; r++)
-            for (int c = 0; c < SIZE; c++)
-                kernel[r][c] <= 0;
-        kernel[(SIZE-1)/2][(SIZE-1)/2] <= 1;
-        divisior = 1;
-    end
-
     logic [WIDTH-1:0] image [0:PictureHeight-1][0:PictureWidth-1];
 
     initial begin
         clk = 0;
-        rst = 1;
+        rst = 0;
         enable = 0;
-        count = 0;
+        count = 1;
         for (int r = 0; r < PictureHeight; r++) begin
             for (int c = 0; c < PictureWidth; c++) begin
                 image[r][c] = count;
@@ -65,7 +51,9 @@ module tb_conv2d_top;
         end
 
         #20;
-        rst = 0;
+        rst = 1;
+        kernelEnable = 1;
+        kernelType = 1;
         #25;
         enable = 1;
 

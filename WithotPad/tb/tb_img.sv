@@ -43,7 +43,7 @@ conv2d_top #(
     .enable(enable),
     .pixel_in(pixel_in),
     .kernel(kernel),
-    .divisior(divisor),
+    .divider(divisor),
     .ready(ready),
     .pixel_out(pixel_out)
 );

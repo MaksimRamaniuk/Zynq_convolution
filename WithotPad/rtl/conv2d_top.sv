@@ -7,19 +7,33 @@ module conv2d_top #(
 )(
     input logic clk,
     input logic rst,
-    input logic enable,
+    input logic tvalid,
 
     input logic [WIDTH-1:0] pixel_in,
-    input logic [WIDTH-1:0] kernel [0:SIZE-1][0:SIZE-1],
-    input logic [WIDTH-1:0] divisior,
+    input kernelEnable,
+    input logic [1:0] kernelType,
 
     output logic ready,
-    output logic [WIDTH-1:0] pixel_out
+    output logic [WIDTH-1:0] pixel_out,
+    output logic tready,
+    output logic tlast
 );
-
+    logic [WIDTH-1:0] kernel [0:SIZE-1][0:SIZE-1];
+    logic [WIDTH-1:0] divider;
     logic [WIDTH-1:0] shift_reg [0:SIZE-1][0:SIZE-1];
     logic [WIDTH-1:0] window [0:SIZE-1][0:SIZE-1];
     logic [WIDTH-1:0] line_buffer [0:SIZE-2];
+
+    KernelComponent #(
+        .WIDTH(WIDTH),
+        .SIZE(SIZE)
+    ) core (
+        .clk(clk),
+        .ReadEnable(kernelEnable),
+        .kernelType(kernelType),
+        .kernel(kernel),
+        .divider(divider)
+    );
 
     genvar i;
     generate
@@ -30,7 +44,7 @@ module conv2d_top #(
             ) buffer (
                 .clk(clk),
                 .rst(rst),
-                .enable(enable),
+                .enable(tvalid),
                 .pixel_in(shift_reg[i][SIZE-1]),
                 .pixel_out(line_buffer[i])
             );
@@ -43,7 +57,7 @@ module conv2d_top #(
                 for (int j = 0; j < SIZE; j++)
                     shift_reg[i][j] <= 'dx;
         end
-        else if (enable) begin
+        else if (tvalid) begin
 
             for (int i = 0; i < SIZE; i++)
                 for (int j = SIZE-1; j > 0; j--)
@@ -71,7 +85,7 @@ module conv2d_top #(
             warmup_cnt <= 0;
             warmup_done <= 0;
         end
-        else if (enable && !warmup_done) begin
+        else if (tvalid && !warmup_done) begin
 
             if (warmup_cnt == WARMUP) begin
                 warmup_done <= 1;
@@ -87,7 +101,7 @@ module conv2d_top #(
         if (!rst)
             col_cnt <= 0;
 
-        else if (enable && warmup_done) begin
+        else if (tvalid && warmup_done) begin
 
             if (col_cnt == PictureWidth-1)
                 col_cnt <= 0;
@@ -114,7 +128,7 @@ module conv2d_top #(
         .enable(conv_enable),
         .InData(window),
         .kernel(kernel),
-        .divisior(divisior),
+        .divider(divider),
         .ready(ready),
         .OutData(pixel_out)
     );
