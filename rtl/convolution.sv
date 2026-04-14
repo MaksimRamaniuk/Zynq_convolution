@@ -10,7 +10,7 @@ module convolution #(
 
     input logic [WIDTH-1:0] InData [0:SIZE-1][0:SIZE-1],
     input logic [WIDTH-1:0] kernel [0:SIZE-1][0:SIZE-1],
-    input logic [WIDTH-1:0] divisior,
+    input logic [WIDTH-1:0] divider,
 
     output logic ready,
     output logic [WIDTH-1:0] OutData
@@ -20,7 +20,7 @@ module convolution #(
     logic [2*WIDTH-1:0] product;
 
     always_ff @(posedge clk) begin
-        if (!rst) begin
+        if (rst) begin
             OutData <= 0;
             ready <= 0;
         end
@@ -36,7 +36,7 @@ module convolution #(
                         sum += product;
                     end
                 end
-                sum /= divisior;
+                sum /= divider;
                 
                 if (sum > ((1 << WIDTH) - 1))
                     OutData <= sum - ((1 << WIDTH)-1);

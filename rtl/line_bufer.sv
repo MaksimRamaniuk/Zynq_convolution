@@ -11,6 +11,7 @@ module line_bufer #(
     input  logic [WIDTH-1:0] pixel_in,
     output logic [WIDTH-1:0] pixel_out
 );
+    (* ram_style="block" *)
     logic [WIDTH-1:0] mem [0:PictureWidth-1];
     integer wr_ptr;
     integer rd_ptr;
@@ -18,7 +19,7 @@ module line_bufer #(
     assign pixel_out = mem[rd_ptr];
     
     always_ff @(posedge clk) begin
-        if (!rst) begin
+        if (rst) begin
             wr_ptr <= 0;
             rd_ptr <= 0;
         end

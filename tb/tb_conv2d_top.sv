@@ -18,11 +18,15 @@ module tb_conv2d_top;
     logic ready;
     logic [WIDTH-1:0] pixel_out;
     integer count;
+    logic tready;
+    logic tlast;
 
     conv2d_top #(
+        .CHANELS(1),
         .WIDTH(WIDTH),
         .SIZE(SIZE),
-        .PictureWidth(PictureWidth)
+        .PictureWidth(PictureWidth),
+        .PictureHeight(PictureHeight)
     ) DUT (
         .clk(clk),
         .rst(rst),
@@ -31,17 +35,26 @@ module tb_conv2d_top;
         .kernelEnable(kernelEnable),
         .kernelType(kernelType),
         .ready(ready),
-        .pixel_out(pixel_out)
+        .pixel_out(pixel_out),
+        .tready(tready),
+        .tlast(tlast)
     );
 
     always #5 clk = ~clk;
 
     logic [WIDTH-1:0] image [0:PictureHeight-1][0:PictureWidth-1];
 
+    always_comb begin
+        if(!rst) 
+            enable = 0;
+        else 
+            enable = tready;  
+    end
+//    assign enable = tready;
+    
     initial begin
         clk = 0;
         rst = 0;
-        enable = 0;
         count = 1;
         for (int r = 0; r < PictureHeight; r++) begin
             for (int c = 0; c < PictureWidth; c++) begin
@@ -53,20 +66,23 @@ module tb_conv2d_top;
         #20;
         rst = 1;
         kernelEnable = 1;
-        kernelType = 1;
-        #25;
-        enable = 1;
-
+        kernelType = 0;
+        
         for (int r = 0; r < PictureHeight; r++) begin
+            @(posedge clk);
+            wait(enable);
             for (int c = 0; c < PictureWidth; c++) begin
-                @(posedge clk);
                 pixel_in <= image[r][c];
+                @(posedge clk);
             end
         end
+        
         @(posedge clk);
         pixel_in <= 'x;
-        enable <= 0;
-        @(posedge clk);@(posedge clk);@(posedge clk);        
+        @(posedge clk);@(posedge clk);@(posedge clk); 
+        @(posedge clk);@(posedge clk);@(posedge clk);
+        @(posedge clk);@(posedge clk);@(posedge clk); 
+        @(posedge clk);@(posedge clk);@(posedge clk); 
         $finish;
     end
 
