@@ -2,158 +2,156 @@
 
 module tb_img;
 
-parameter WIDTH = 8;
-parameter SIZE = 3;
-parameter PictureWidth  = 512;
-parameter PictureHeight = 512;
+    parameter WIDTH = 8;
+    parameter SIZE = 3;
+    parameter PictureWidth  = 512;
+    parameter PictureHeight = 512;
+    
+    logic clk;
+    logic rst;
+    logic enable;
+    
+    logic [WIDTH-1:0] pixel_in;
+    logic kernelEnable;
+    logic [1:0] kernelType;
+    logic [WIDTH-1:0] pixel_out;
+    
+    logic ready;
+    logic tready;
+    logic tlast;
 
-logic clk;
-logic rst;
-logic enable;
-
-logic [WIDTH-1:0] pixel_in;
-logic [WIDTH-1:0] pixel_out;
-
-logic ready;
-
-logic [WIDTH-1:0] kernel [0:SIZE-1][0:SIZE-1];
-
-logic [WIDTH-1:0] divisor = 1;
-
-integer fileIn;
-integer fileOut;
-
-integer width,height,maxval;
-string format;
-string comment;
-
-logic [WIDTH-1:0] image  [0:PictureHeight-1][0:PictureWidth-1];
-logic [WIDTH-1:0] result [0:PictureHeight-3][0:PictureWidth-3];
-
-integer r_out = 0;
-integer c_out = 0;
-localparam PAD = SIZE-1;
-conv2d_top #(
-    .WIDTH(WIDTH),
-    .SIZE(SIZE),
-    .PictureWidth(PictureWidth)
-) DUT (
-    .clk(clk),
-    .rst(rst),
-    .enable(enable),
-    .pixel_in(pixel_in),
-    .kernel(kernel),
-    .divider(divisor),
-    .ready(ready),
-    .pixel_out(pixel_out)
-);
-
-always #5 clk = ~clk;
-
-initial begin
-//    kernel[2][0] = 1; kernel[2][1] = 2; kernel[2][2] = 1;
-//    kernel[1][0] = 2; kernel[1][1] = 4; kernel[1][2] = 2;
-//    kernel[0][0] = 1; kernel[0][1] = 2; kernel[0][2] = 1;
-
-//    divisor = 16;
-//    kernel[2][0] = 0; kernel[2][1] = 1; kernel[2][2] = 0;
-//    kernel[1][0] = 1; kernel[1][1] = -4; kernel[1][2] = 1;
-//    kernel[0][0] = 0; kernel[0][1] = 1; kernel[0][2] = 0;
-
-//    divisor = 1;
-    kernel[2][0] = -1; kernel[2][1] = -2; kernel[2][2] = -1;
-    kernel[1][0] = 0; kernel[1][1] = 0; kernel[1][2] = 0;
-    kernel[0][0] = 1; kernel[0][1] = 2; kernel[0][2] = 1;
-
-    divisor = 1;
-end
-
-always @(posedge clk) begin
-
-    if(ready) begin
-
-        result[r_out][c_out] <= pixel_out;
-
-        if(c_out == PictureWidth-3) begin
-            c_out <= 0;
-            r_out <= r_out + 1;
-        end
-        else begin
-            c_out <= c_out + 1;
+    logic [WIDTH-1:0] kernel [0:SIZE-1][0:SIZE-1];
+    
+    logic [WIDTH-1:0] divisor = 1;
+    
+    integer fileIn;
+    integer fileOut;
+    
+    integer Pwidth,Pheight,maxval;
+    string format;
+    string comment;
+    
+    logic [WIDTH-1:0] image  [0:PictureHeight-1][0:PictureWidth-1];
+    logic [WIDTH-1:0] result [0:PictureHeight-1][0:PictureWidth-1];
+    
+    integer r_out = 0;
+    integer c_out = 0;
+    localparam PAD = SIZE-1;
+    
+        conv2d_top #(
+            .CHANELS(1),
+            .WIDTH(WIDTH),
+            .SIZE(SIZE),
+            .PictureWidth(PictureWidth),
+            .PictureHeight(PictureHeight)
+        ) DUT (
+            .clk(clk),
+            .rst(rst),
+            .tvalid(enable),
+            .pixel_in(pixel_in),
+            .kernelEnable(kernelEnable),
+            .kernelType(kernelType),
+            .ready(ready),
+            .pixel_out(pixel_out),
+            .tready(tready),
+            .tlast(tlast)
+        );
+    
+    always #5 clk = ~clk;
+    
+    always_comb begin
+        if(!rst) 
+            enable = 0;
+        else 
+            enable = tready;  
+    end
+    
+    always @(posedge clk) begin
+    
+        if(ready) begin
+    
+            result[r_out][c_out] <= pixel_out;
+    
+            if(c_out == PictureWidth-1) begin
+                c_out <= 0;
+                r_out <= r_out + 1;
+            end
+            else begin
+                c_out <= c_out + 1;
+            end
         end
     end
-end
-
-initial begin
-    clk = 0;
-    rst = 0;
-    enable = 0;
-
-    fileIn = $fopen("lena.ppm","r");
-    fileOut = $fopen("result.ppm","w");
-    if(fileIn == 0) begin
-        $display("ERROR: cannot open input file");
+    
+    initial begin
+        clk = 0;
+        rst = 0;
+    
+        fileIn = $fopen("lena.ppm","r");
+        fileOut = $fopen("result.ppm","w");
+        if(fileIn == 0) begin
+            $display("ERROR: cannot open input file");
+            $finish;
+        end
+    
+        $fscanf(fileIn,"%s\n",format);
+        $fgets(comment,fileIn);
+        $fscanf(fileIn,"%d %d\n",Pwidth,Pheight);
+        $fscanf(fileIn,"%d\n",maxval);
+    
+        $display("FORMAT = %s",format);
+        $display("SIZE = %0d x %0d",Pwidth,Pheight);
+    
+        for(int r=0;r<PictureHeight;r++) begin
+            for(int c=0;c<PictureWidth;c++) begin
+                $fscanf(fileIn,"%d",image[r][c]);
+            end
+        end
+    
+        $fclose(fileIn);
+    
+        #20;
+        rst = 1;
+        kernelEnable = 1;
+        kernelType = 2;
+        
+        for (int r = 0; r < PictureHeight; r++) begin
+            @(posedge clk);
+            wait(enable);
+            for (int c = 0; c < PictureWidth; c++) begin
+                pixel_in <= image[r][c];
+                @(posedge clk);
+            end
+        end
+    
+        @(posedge clk);
+        pixel_in <= 'x;
+        for(int r=0;r<PictureHeight;r++) begin
+            for(int c=0;c<PictureWidth;c++) begin
+                @(posedge clk);
+            end
+        end
+        
+        $fdisplay(fileOut,"P2");
+        $fdisplay(fileOut,"# Generated by SystemVerilog");
+        $fdisplay(fileOut,"%0d %0d",PictureWidth,PictureHeight);
+        $fdisplay(fileOut,"%0d",maxval);
+    
+        for(int r=0;r<PictureHeight;r++) begin
+            for(int c=0;c<PictureWidth;c++) begin
+                $fwrite(fileOut,"%0d ",result[r][c]);
+            end
+    
+            $fwrite(fileOut,"\n");
+    
+        end
+    
+        $fclose(fileOut);
+    
+        $display("Image processing finished");
+    
+        #20;
         $finish;
+    
     end
-
-    $fscanf(fileIn,"%s\n",format);
-    $fgets(comment,fileIn);
-    $fscanf(fileIn,"%d %d\n",width,height);
-    $fscanf(fileIn,"%d\n",maxval);
-
-    $display("FORMAT = %s",format);
-    $display("SIZE = %0d x %0d",width,height);
-
-    for(int r=0;r<PictureHeight;r++) begin
-        for(int c=0;c<PictureWidth;c++) begin
-            $fscanf(fileIn,"%d",image[r][c]);
-        end
-    end
-
-    $fclose(fileIn);
-
-    #20;
-    rst = 1;
-
-    #20;
-    enable = 1;
-
-    for(int r=0;r<PictureHeight;r++) begin
-        for(int c=0;c<PictureWidth;c++) begin
-            @(posedge clk);
-            pixel_in <= image[r][c];
-        end
-    end
-
-    @(posedge clk);
-    pixel_in <= 'x;
-    enable <= 0;
-    for(int r=0;r<PictureHeight;r++) begin
-        for(int c=0;c<PictureWidth;c++) begin
-            @(posedge clk);
-        end
-    end
-    $fdisplay(fileOut,"P2");
-    $fdisplay(fileOut,"# Generated by SystemVerilog");
-    $fdisplay(fileOut,"%0d %0d",PictureWidth-PAD,PictureHeight-PAD);
-    $fdisplay(fileOut,"%0d",maxval);
-
-    for(int r=0;r<PictureHeight-SIZE+1;r++) begin
-        for(int c=0;c<PictureWidth-SIZE+1;c++) begin
-            $fwrite(fileOut,"%0d ",result[r][c]);
-        end
-
-        $fwrite(fileOut,"\n");
-
-    end
-
-    $fclose(fileOut);
-
-    $display("Image processing finished");
-
-    #20;
-    $finish;
-
-end
 
 endmodule
